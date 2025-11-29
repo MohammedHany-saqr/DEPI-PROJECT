@@ -210,7 +210,7 @@ if not st.session_state['token']:
                     auto_name = data.get("name", "")
                     auto_gender = data.get("gender", "")
                     auto_address = data.get("address", "")
-                    auto_age = data.get("age", None)  # لو الموديل بيرجع السن جاهز
+                    auto_age = data.get("age", None)
 
                 else:
                     st.error("Failed to extract info — check backend.")
@@ -596,7 +596,7 @@ else:
             # -------------------- PAYLOAD FOR MODEL --------------------
             payload = {
                 "age": age,
-                "gender": 1 if gender == "Male" else 0,  # لو المودل عايز رقم
+                "gender": 1 if gender == "Male" else 0,  
                 "height": height,
                 "weight": weight,
                 "ap_hi": ap_hi,
@@ -612,7 +612,7 @@ else:
             res = api_request("POST", "predict/heart/", payload)
 
             if res and res.status_code == 200:
-                prediction = res.json()["prediction"]  # expected 0=No disease, 1=Disease
+                prediction = res.json()["prediction"]  
 
                 if prediction == 1:
                     risk = "High Risk of Heart Disease"
