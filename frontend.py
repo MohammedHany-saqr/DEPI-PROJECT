@@ -1,6 +1,66 @@
 import streamlit as st
 import requests
 from datetime import datetime
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
+import time
+import threading
+from utils import save_chat_history, load_history, clear_history
+import schedule
+import re
+import textwrap
+
+load_dotenv()
+API_KEY = os.environ.get("GEMINI_API_KEY")
+
+if not API_KEY:
+    st.error("❌ GEMINI_API_KEY غير موجود في متغيرات البيئة")
+else:
+    genai.configure(api_key=API_KEY)
+
+SYSTEM_PROMPT = """
+You are a medical assistant specialized in diabetes and hypertension.
+Your tasks:
+1. Provide safe medical guidance.
+2. Interpret symptoms.
+3. Offer lifestyle & nutrition tips.
+4. Remind medication schedules.
+Respond in the user's language automatically.
+"""
+
+MODEL_NAME = "models/gemini-2.0-flash"
+
+
+def chat_with_gemini(prompt: str) -> str:
+    model = genai.GenerativeModel(MODEL_NAME)
+    response = model.generate_content(f"{SYSTEM_PROMPT}\nUser: {prompt}")
+    return response.text
+
+
+def clean_html(text):
+    return re.sub("<.*?>", "", text)
+
+
+def detect_dir(text):
+    return "rtl" if any("\u0600" <= c <= "\u06FF" for c in text) else "ltr"
+
+
+def remind_medication():
+    st.toast("⏰ Reminder: Time to take your medication!", icon="💊")
+
+
+def start_reminders():
+    schedule.every(60).minutes.do(remind_medication)
+    while True:
+        schedule.run_pending()
+        time.sleep(5)
+if 'reminder_thread_started' not in st.session_state:
+    threading.Thread(target=start_reminders, daemon=True).start()
+    st.session_state['reminder_thread_started'] = True
+
+# ---------------------------------------------------
+
 
 API_URL = "http://127.0.0.1:8000/api/"
 st.set_page_config(page_title="ROSHDA", page_icon="🏥", layout="wide")
@@ -113,12 +173,12 @@ st.markdown("""
     ROSHDA
 </div>
 """, unsafe_allow_html=True)
-
 # Session state
 if 'token' not in st.session_state: st.session_state['token'] = None
 if 'user_id' not in st.session_state: st.session_state['user_id'] = None
 if 'user_name' not in st.session_state: st.session_state['user_name'] = ""
 if 'role' not in st.session_state: st.session_state['role'] = None
+if 'messages' not in st.session_state: st.session_state['messages'] = []
 
 
 # ---------------- API request helper ----------------
@@ -349,53 +409,67 @@ else:
                     else:
                         st.error("Failed to update profile.")
     elif menu == "Chat":
-        st.header("💬 Chat with Doctor / Support (AI Powered)")
+                        st.header("💬 AI Medical Assistant ")
 
-        # Initialize chat history
-        if "messages" not in st.session_state:
-            st.session_state["messages"] = []
+                        if 'reminder_thread_started' not in st.session_state:
+                            threading.Thread(target=start_reminders, daemon=True).start()
+                            st.session_state['reminder_thread_started'] = True
 
-        # Text input
-        user_input = st.text_input("Type your message:")
 
-        # Send button
-        if st.button("Send") and user_input:
+                        chat_container = st.container(height=400, border=True)
 
-            # Add user message
-            st.session_state["messages"].append({
-                "role": "user",
-                "text": user_input
-            })
+                        for msg in st.session_state["messages"]:
+                            if msg["role"] == "user":
+                                chat_container.markdown(f"""
+                                        <div style="text-align:right; margin-bottom: 10px; padding: 10px; background-color: #2e8b57; border-radius: 10px; color: white;">
+                                            <b>👤 You:</b> {msg['text']}
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                            else:
+                                chat_container.markdown(f"""
+                                        <div style="text-align:left; margin-bottom: 10px; padding: 10px; background-color: #1e1e2d; border-radius: 10px; color: #dddddd;">
+                                            <b>🤖 Assistant:</b> {msg['text']}
+                                        </div>
+                                        """, unsafe_allow_html=True)
 
-            # ----------------- Call Backend API -----------------
-            try:
-                response = api_request(
-                    "POST",
-                    "chat/ai/",
-                    {"message": user_input}
-                )
 
-                if response and response.status_code == 200:
-                    bot_reply = response.json().get("reply", "⚠️ No response from AI.")
-                else:
-                    bot_reply = "⚠️ Error connecting to AI model."
+                        user_msg = st.text_input("Type your message:",
+                                                 placeholder="Symptoms, medication, diet...",
+                                                 key="user_input")
 
-            except Exception as e:
-                bot_reply = f"⚠️ Exception: {e}"
+                        send_button = st.empty()
 
-            # Add bot message
-            st.session_state["messages"].append({
-                "role": "bot",
-                "text": bot_reply
-            })
+                        if send_button.button("Send", use_container_width=True) and user_msg:
+                            st.session_state["messages"].append({"role": "user", "text": user_msg})
 
-        # ----------------- Display Chat -----------------
-        for msg in st.session_state["messages"]:
-            if msg["role"] == "user":
-                st.markdown(f"🧑‍💻 **You:** {msg['text']}")
-            else:
-                st.markdown(f"🤖 **AI:** {msg['text']}")
+                            with st.spinner("Thinking..."):
+                                try:
+                                    reply = chat_with_gemini(user_msg)
+                                    save_chat_history(clean_html(user_msg), clean_html(reply))
 
+                                except Exception as e:
+                                    reply = f"⚠️ Error connecting to model: {e}"
+
+                            st.session_state["messages"].append({"role": "bot", "text": reply})
+                            st.rerun()
+
+
+                        st.divider()
+                        st.subheader("💾 Saved History (File)")
+
+                        if st.button("🗑️ Clear All Saved History"):
+                            clear_history()
+                            st.success("History cleared successfully!")
+                            time.sleep(1)
+                            st.rerun()
+
+                        history = load_history()
+
+                        if history:
+                            for h in reversed(history[-5:]):
+                                st.markdown(f"**{h['user']}**", help=f"AI: {h['bot']}")
+                        else:
+                            st.caption("No saved conversations in file.")
     elif menu == "Blood Sugar Check":
 
         st.header("🩺 Blood Sugar Check")
@@ -433,7 +507,7 @@ else:
             payload = {
 
                 "year": year,
-                "gender": gender_val, 
+                "gender": gender_val,
                 "age": age,
                 "race": race,
                 "hypertension": 1 if hypertension == "Yes" else 0,
@@ -498,7 +572,7 @@ else:
 
             age = st.number_input("Age", min_value=1, max_value=120, value=30)
             gender = st.selectbox("Gender", ["Male", "Female"])
-            gender_val = 1 if gender == "Male" else 0  
+            gender_val = 1 if gender == "Male" else 0
             height = st.number_input("Height (cm)", min_value=50, max_value=250, value=170)
 
             weight = st.number_input("Weight (kg)", min_value=10, max_value=300, value=70)
@@ -523,7 +597,7 @@ else:
 
             payload = {
                 "age": age,
-                "gender": gender_val, 
+                "gender": gender_val,
                 "height": height,
                 "weight": weight,
                 "ap_hi": ap_hi,
@@ -539,7 +613,6 @@ else:
 
             if res and res.status_code == 200:
                 prediction = res.json()["prediction"]  # 0=Low Risk, 1=High Risk of Heart Disease
-
 
                 if ap_hi >= 140 or ap_lo >= 90:
                     bp_level = "High Blood Pressure (Hypertension)"
@@ -601,7 +674,7 @@ else:
             # -------------------- PAYLOAD FOR MODEL --------------------
             payload = {
                 "age": age,
-                "gender": gender_val,  
+                "gender": gender_val,
                 "height": height,
                 "weight": weight,
                 "ap_hi": ap_hi,
