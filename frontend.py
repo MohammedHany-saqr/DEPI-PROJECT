@@ -524,43 +524,27 @@ else:
             res = api_request("POST", "predict/diabetes/", payload)
 
             if res and res.status_code == 200:
-
-                prediction = res.json()["prediction"]  # expected 0 = no diabetes, 1 = diabetes
+                data = res.json()
+                prediction = data.get("prediction", 0)  # Default 0 if missing
 
                 if prediction == 1:
-
                     risk = "High Diabetes Risk"
-
                     color = "#b30000"
-
                 else:
-
                     risk = "Low Diabetes Risk"
                     color = "#009933"
-
             else:
-
                 st.error("Prediction failed — check backend")
                 st.stop()
 
-            # -----------------------------------------------------
-
             st.subheader("Model Prediction:")
-
             st.markdown(f"""
-
                 <div style='padding:20px; border-radius:10px; 
-
-                background-color:{color}; color:white; 
-
-                font-size:22px; text-align:center; margin-top:10px;'>
-
-                <b>{risk}</b>
-
+                            background-color:{color}; color:white; 
+                            font-size:22px; text-align:center; margin-top:10px;'>
+                    <b>{risk}</b>
                 </div>
-
             """, unsafe_allow_html=True)
-
 
     elif menu == "Blood Pressure Check":
 
