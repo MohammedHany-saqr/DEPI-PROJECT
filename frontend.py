@@ -122,19 +122,24 @@ if 'role' not in st.session_state: st.session_state['role'] = None
 
 
 # ---------------- API request helper ----------------
-# ---------------- API request helper ----------------
-# ---------------- API request helper ----------------
-# ---------------- API request helper ----------------
-# ---------------- API request helper ----------------
-def api_request(method, endpoint, data=None):
+def api_request(method, endpoint, data=None, files=None):
     headers = {}
     if st.session_state['token']:
         headers['Authorization'] = f"Token {st.session_state['token']}"
     url = f"{API_URL}{endpoint}"
+
     try:
-        if method == "GET": return requests.get(url, headers=headers)
-        if method == "POST": return requests.post(url, json=data, headers=headers)
-        if method == "PUT": return requests.put(url, json=data, headers=headers)
+        if method == "POST":
+            if files:
+                return requests.post(url, files=files, headers=headers)
+            else:
+                return requests.post(url, json=data, headers=headers)
+
+        if method == "GET":
+            return requests.get(url, headers=headers)
+        if method == "PUT":
+            return requests.put(url, json=data, headers=headers)
+
     except requests.exceptions.ConnectionError:
         st.error("❌ Could not connect to backend.")
         return None
@@ -200,7 +205,7 @@ if not st.session_state['token']:
             st.image(uploaded_id, use_column_width=True)
             if st.button("Extract from ID"):
                 files = {"file": uploaded_id.getvalue()}
-                res = api_request("POST", "ocr/extract-id/", files=files, is_file=True)
+                res = api_request("POST", "ocr/extract-id/", files=files)
 
                 if res and res.status_code == 200:
                     data = res.json()
@@ -211,7 +216,6 @@ if not st.session_state['token']:
                     auto_gender = data.get("gender", "")
                     auto_address = data.get("address", "")
                     auto_age = data.get("age", None)
-
                 else:
                     st.error("Failed to extract info — check backend.")
         # -------------------------------------------------
@@ -289,8 +293,6 @@ else:
         menu_options.append("Heart Disease Check")
         menu_options.append("Brain Tumor Scan")
 
-
-
     # Radio menu for main options
     menu = st.sidebar.radio("Menu", menu_options)
 
@@ -347,45 +349,52 @@ else:
                     else:
                         st.error("Failed to update profile.")
     elif menu == "Chat":
-                        st.header("💬 Chat with Doctor / Support (AI Powered)")
+        st.header("💬 Chat with Doctor / Support (AI Powered)")
 
-                        # Initialize session for messages
-                        if 'messages' not in st.session_state:
-                            st.session_state['messages'] = []
+        # Initialize chat history
+        if "messages" not in st.session_state:
+            st.session_state["messages"] = []
 
-                        # Input from user
-                        user_input = st.text_input("Type your message:")
+        # Text input
+        user_input = st.text_input("Type your message:")
 
-                        # When Send button is clicked
-                        if st.button("Send") and user_input:
-                            # Add user message
-                            st.session_state['messages'].append({"role": "user", "text": user_input})
+        # Send button
+        if st.button("Send") and user_input:
 
-                            # --------- Call the AI model ----------
-                            try:
-                                response = api_request(
-                                    "POST",
-                                    "chat/ai/",  # Endpoint on backend you will create
-                                    {"message": user_input}  # Payload
-                                )
+            # Add user message
+            st.session_state["messages"].append({
+                "role": "user",
+                "text": user_input
+            })
 
-                                if response and response.status_code == 200:
-                                    bot_reply = response.json().get("reply", "⚠️ No response from AI.")
-                                else:
-                                    bot_reply = "⚠️ Error connecting to AI model."
+            # ----------------- Call Backend API -----------------
+            try:
+                response = api_request(
+                    "POST",
+                    "chat/ai/",
+                    {"message": user_input}
+                )
 
-                            except Exception as e:
-                                bot_reply = f"⚠️ Exception: {e}"
+                if response and response.status_code == 200:
+                    bot_reply = response.json().get("reply", "⚠️ No response from AI.")
+                else:
+                    bot_reply = "⚠️ Error connecting to AI model."
 
-                            # Add bot response to history
-                            st.session_state['messages'].append({"role": "bot", "text": bot_reply})
+            except Exception as e:
+                bot_reply = f"⚠️ Exception: {e}"
 
-                        # --------- Display Chat History ----------
-                        for msg in st.session_state['messages']:
-                            if msg["role"] == "user":
-                                st.markdown(f"🧑‍💻 **You:** {msg['text']}")
-                            else:
-                                st.markdown(f"🤖 **AI:** {msg['text']}")
+            # Add bot message
+            st.session_state["messages"].append({
+                "role": "bot",
+                "text": bot_reply
+            })
+
+        # ----------------- Display Chat -----------------
+        for msg in st.session_state["messages"]:
+            if msg["role"] == "user":
+                st.markdown(f"🧑‍💻 **You:** {msg['text']}")
+            else:
+                st.markdown(f"🤖 **AI:** {msg['text']}")
 
     elif menu == "Blood Sugar Check":
 
@@ -396,6 +405,7 @@ else:
             year = st.number_input("Year of Birth", min_value=1900, max_value=2025, value=2000)
 
             gender = st.selectbox("Gender", ["Male", "Female"])
+            gender_val = 1 if gender == "Male" else 0
 
             age = st.number_input("Age", min_value=0, max_value=120, value=30)
 
@@ -423,7 +433,7 @@ else:
             payload = {
 
                 "year": year,
-                "gender": gender,
+                "gender": gender_val, 
                 "age": age,
                 "race": race,
                 "hypertension": 1 if hypertension == "Yes" else 0,
@@ -487,9 +497,8 @@ else:
             # ---- NEW INPUTS ----
 
             age = st.number_input("Age", min_value=1, max_value=120, value=30)
-
             gender = st.selectbox("Gender", ["Male", "Female"])
-
+            gender_val = 1 if gender == "Male" else 0  
             height = st.number_input("Height (cm)", min_value=50, max_value=250, value=170)
 
             weight = st.number_input("Weight (kg)", min_value=10, max_value=300, value=70)
@@ -514,7 +523,7 @@ else:
 
             payload = {
                 "age": age,
-                "gender": gender,
+                "gender": gender_val, 
                 "height": height,
                 "weight": weight,
                 "ap_hi": ap_hi,
@@ -527,46 +536,40 @@ else:
 
             }
             res = api_request("POST", "predict/heart/", payload)
+
             if res and res.status_code == 200:
-                prediction = res.json()["prediction"]
+                prediction = res.json()["prediction"]  # 0=Low Risk, 1=High Risk of Heart Disease
+
 
                 if ap_hi >= 140 or ap_lo >= 90:
-
-                    level = "High Blood Pressure (Hypertension)"
-
-                    color = "#b30000"
-
+                    bp_level = "High Blood Pressure (Hypertension)"
+                    bp_color = "#b30000"
                 elif ap_hi < 90 or ap_lo < 60:
-
-                    level = "Low Blood Pressure"
-
-                    color = "#0066cc"
-
+                    bp_level = "Low Blood Pressure"
+                    bp_color = "#0066cc"
                 else:
+                    bp_level = "Normal Blood Pressure"
+                    bp_color = "#009933"
 
-                    level = "Normal Blood Pressure"
+                heart_risk_msg = "High Risk of Heart Disease" if prediction == 1 else "Low Risk of Heart Disease"
+                heart_risk_color = "#b30000" if prediction == 1 else "#009933"
 
-                    color = "#009933"
-
-                # ------------------------------------------------
-
-                st.success(f"Model Prediction: {prediction}")
+                st.subheader("Results:")
 
                 st.markdown(f"""
+                    <div style='padding:15px; border-radius:10px; 
+                    background-color:{bp_color}; color:white; font-size:18px; text-align:center;'>
+                    <b>Your Blood Pressure Level:</b><br>{bp_level}
+                    </div>
 
-                    <div style='padding:20px; border-radius:10px; 
-
-                    background-color:{color}; color:white; font-size:22px; text-align:center; margin-top:20px;'>
-
-                    <b>Your Blood Pressure Level:</b><br>{level}
-
+                    <div style='padding:15px; border-radius:10px; 
+                    background-color:{heart_risk_color}; color:white; font-size:18px; text-align:center; margin-top:10px;'>
+                    <b>AI Model Heart Disease Prediction:</b><br>{heart_risk_msg}
                     </div>
 
                 """, unsafe_allow_html=True)
 
-
             else:
-
                 st.error("Prediction failed — check backend")
 
     elif menu == "Heart Disease Check":
@@ -576,6 +579,8 @@ else:
 
             age = st.number_input("Age", min_value=1, max_value=120, value=40)
             gender = st.selectbox("Gender", ["Male", "Female"])
+            gender_val = 1 if gender == "Male" else 0
+
             height = st.number_input("Height (cm)", min_value=50, max_value=250, value=170)
             weight = st.number_input("Weight (kg)", min_value=10, max_value=300, value=70)
 
@@ -596,7 +601,7 @@ else:
             # -------------------- PAYLOAD FOR MODEL --------------------
             payload = {
                 "age": age,
-                "gender": 1 if gender == "Male" else 0,  
+                "gender": gender_val,  
                 "height": height,
                 "weight": weight,
                 "ap_hi": ap_hi,
@@ -612,7 +617,7 @@ else:
             res = api_request("POST", "predict/heart/", payload)
 
             if res and res.status_code == 200:
-                prediction = res.json()["prediction"]  
+                prediction = res.json()["prediction"]  # expected 0=No disease, 1=Disease
 
                 if prediction == 1:
                     risk = "High Risk of Heart Disease"
@@ -634,6 +639,7 @@ else:
                 <b>{risk}</b>
                 </div>
             """, unsafe_allow_html=True)
+
     elif menu == "Brain Tumor Scan":
         st.header("🧠 Brain Tumor Detection (AI Model)")
         st.write("Upload an MRI/CT image and the AI model will detect if a tumor exists.")
@@ -648,7 +654,6 @@ else:
 
                     # Prepare image file for API
                     files = {"image": uploaded_image.getvalue()}
-
                     res = api_request("POST", "tumor/detect/", files=files)
 
                 if res and res.status_code == 200:
