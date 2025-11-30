@@ -1,0 +1,1 @@
+{"image_size": 224, "preprocessing": "vgg16_preprocess_input", "color_mode": "RGB"}
