@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import JSONParser
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import AllowAny
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
@@ -23,6 +25,9 @@ import random # For chat/tumor placeholders
 from scipy.stats import boxcox
 from .models import Doctor, PatientProfile, Appointment
 from .serializers import DoctorSerializer, PatientProfileSerializer, AppointmentSerializer
+import ocr_processor
+import tempfile
+from django.core.files.storage import default_storage
 
 
 # ---------------- Helpers ----------------
@@ -212,6 +217,45 @@ class MyAppointments(APIView):
         appointments = Appointment.objects.filter(patient=request.user)
         return Response(AppointmentSerializer(appointments, many=True).data,
                         status=status.HTTP_200_OK)
+
+
+# ---------------- OCR / ID extraction ----------------
+class ExtractID(APIView):
+    """Accept an uploaded ID image and run the OCR pipeline (uses ocr_processor.py).
+
+    Endpoint: POST /api/ocr/extract-id/
+    Expects form-data file field named 'file' (or 'image'). Returns JSON with name, age, gender, address, national_id
+    """
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        try:
+            # prefer 'file' field but allow 'image' fallback
+            upload = request.FILES.get('file') or request.FILES.get('image')
+            if not upload:
+                return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # save to a temporary file and pass path to OCR processor
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(upload.name)[1])
+            tmp.write(upload.read())
+            tmp.flush()
+            tmp_path = tmp.name
+            tmp.close()
+
+            result = ocr_processor.run_ocr_on_file(tmp_path)
+
+            # cleanup file
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # include error information to help debugging
+            return Response({"error": f"OCR failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # appointments/views.py (REPLACE your existing PredictHeartDisease class with this)

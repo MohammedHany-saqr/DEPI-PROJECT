@@ -267,7 +267,7 @@ if not st.session_state['token']:
         auto_address = ""
 
         if uploaded_id is not None:
-            st.image(uploaded_id, use_column_width=True)
+            st.image(uploaded_id, use_container_width=True)
             if st.button("Extract from ID"):
 
                 temp_file_path = os.path.join(os.getcwd(), f"temp_{uploaded_id.name}")
@@ -731,7 +731,7 @@ else:
         uploaded_image = st.file_uploader("Upload Brain MRI", type=["jpg", "jpeg", "png"])
 
         if uploaded_image:
-            st.image(uploaded_image, caption="Uploaded MRI", use_column_width=True)
+            st.image(uploaded_image, caption="Uploaded MRI", use_container_width=True)
 
             if st.button("Analyze Image"):
                 with st.spinner("Running AI Model..."):
