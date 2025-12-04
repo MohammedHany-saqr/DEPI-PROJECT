@@ -120,88 +120,88 @@ st.markdown("""
 
     /* Global Background */
     .stApp {
-        background: linear-gradient(135deg, #1a1c24, #11141a);
-        color: #ffffff;
+        background: #f4f6f9;
+        color: #111827;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
     }
 
-    /* Sidebar Container */
+    /* Sidebar Container (Admin style) */
     section[data-testid="stSidebar"] {
-        background: rgba(20, 23, 32, 0.65);
-        backdrop-filter: blur(12px);
-        border-right: 1px solid rgba(255,255,255,0.08);
-        padding: 30px 20px !important;
-        border-radius: 0 25px 25px 0;
-        box-shadow: 4px 0 25px rgba(0,0,0,0.4);
+        background: linear-gradient(180deg, #06283D, #0B486B);
+        color: #ffffff;
+        padding: 24px 12px !important;
+        border-radius: 0 12px 12px 0;
+        box-shadow: 4px 0 20px rgba(6,40,61,0.45);
     }
 
-    /* Sidebar Title */
-   section[data-testid="stSidebar"] h1 {
-    background: none !important;
-    -webkit-background-clip: unset !important;
-    -webkit-text-fill-color: white !important;
-    color: white !important;
-}
+    /* Sidebar title */
+    section[data-testid="stSidebar"] .sidebar-title {
+        font-size: 22px;
+        font-weight: 800;
+        color: #ffffff;
+        padding: 8px 0 18px 8px;
+    }
+    
+        /* Sidebar H1 fallback styling */
+        section[data-testid="stSidebar"] h1 {
+            color: transparent !important;
+            height: 0;
+            margin: 0;
+            padding: 0;
+        }
 
-
-    /* Logout Button */
-    .stButton>button {
+    /* Large nav buttons look */
+    .nav-button {
+        display: block;
         width: 100%;
-        padding: 16px 26px;
-        border-radius: 28px;
-        background: linear-gradient(135deg, #ff7a8a, #ff3d80);
-        color: white;
-        font-size: 18px;
-        font-weight: 600;
+        text-align: left;
+        padding: 12px 16px;
+        margin: 8px 0;
+        border-radius: 10px;
+        background: transparent;
+        color: #cfe9ff;
         border: none;
-        box-shadow: 0 8px 18px rgba(255, 60, 110, 0.28);
-        transition: transform 0.18s ease, box-shadow 0.18s ease;
-        margin-bottom: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .nav-button.active {
+        background: #0d6efd;
+        color: white;
+        box-shadow: 0 8px 18px rgba(13,110,253,0.18);
+    }
+
+    /* Primary action buttons (forms) */
+    .stButton>button {
+        background: linear-gradient(180deg, #2563eb, #0d6efd) !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 10px 18px !important;
+        font-weight: 700 !important;
+        box-shadow: 0 8px 20px rgba(13,110,253,0.15) !important;
+        border: none !important;
     }
 
     .stButton>button:hover {
-        transform: translateX(4px);
-        box-shadow: 0 14px 28px rgba(255, 50, 120, 0.45);
-        background: linear-gradient(135deg, #ff4c6a, #ff7f7f);
+        transform: translateY(-2px);
     }
 
-    /* Radio Label (Menu Title) */
-    div[data-testid="stRadio"] > label {
-        color: #ffffff !important;
-        font-size: 20px !important;
-        font-weight: 700;
+    /* Card style for main content */
+    .main-card {
+        background: white;
+        border-radius: 12px;
+        padding: 22px;
+        box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+        margin-bottom: 18px;
+    }
+
+    /* Admin page header */
+    .admin-header {
+        font-size: 28px;
+        font-weight: 800;
+        color: #0f172a;
         margin-bottom: 12px;
     }
-
-    /* Radio Items */
-    div[role="radiogroup"] > label {
-        background: rgba(255, 255, 255, 0.05);
-        padding: 10px 15px;
-        margin: 6px 0;
-        border-radius: 10px;
-        font-size: 16px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        cursor: pointer;
-        transition: 0.25s;
-        border: 1px solid rgba(255,255,255,0.05);
-    }
-
-    div[role="radiogroup"] > label:hover {
-        background: rgba(255, 255, 255, 0.12);
-        transform: translateX(4px);
-    }
-
-    /* Selected Option */
-    div[role="radiogroup"] input:checked + div {
-        background: linear-gradient(135deg, #ff4c6a, #ff7f50);
-        border: 1px solid rgba(255,255,255,0.3);
-        color: #ffffff !important;
-        font-weight: 700 !important;
-        box-shadow: 0 0 8px rgba(255, 99, 120, 0.7);
-        transform: scale(1.02);
-    }
-
 
     </style>
 """, unsafe_allow_html=True)
